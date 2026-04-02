@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ocean Water Level Analysis Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --ocean-deep: #0a1628;
+    --ocean-navy: #0d2137;
+    --ocean-mid: #0e3a5c;
+    --ocean-blue: #1565a0;
+    --ocean-cyan: #0891b2;
+    --ocean-light: #06b6d4;
+    --ocean-foam: #e0f7fa;
+    --ocean-wave: #b2ebf2;
+    --accent: #00e5ff;
+    --accent2: #ffd600;
+    --text-primary: #e8f4f8;
+    --text-secondary: #94b8c8;
+    --text-muted: #5d8a9e;
+    --glass: rgba(13,33,55,0.7);
+    --glass2: rgba(14,58,92,0.4);
+    --border: rgba(0,229,255,0.15);
+    --border2: rgba(0,229,255,0.3);
+    --card-bg: rgba(10,22,40,0.8);
+    --sidebar-w: 280px;
+    --font-main: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { font-size:14px; }
+  body { font-family:var(--font-main); background:var(--ocean-deep); color:var(--text-primary); min-height:100vh; overflow-x:hidden; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:var(--ocean-navy); }
+  ::-webkit-scrollbar-thumb { background:var(--ocean-cyan); border-radius:3px; }
+
+  /* ===== LANDING PAGE ===== */
+  #landing { min-height:100vh; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+  .ocean-bg { position:absolute; inset:0; background:linear-gradient(180deg,#020d1a 0%,#051c33 30%,#0a3050 60%,#0d4a70 100%); z-index:0; }
+  .stars { position:absolute; inset:0; z-index:1; }
+  .star { position:absolute; width:2px; height:2px; background:#fff; border-radius:50%; opacity:0.6; animation:twinkle 3s infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.6} 50%{opacity:.1} }
+  .wave-container { position:absolute; bottom:0; left:0; right:0; height:200px; z-index:2; overflow:hidden; }
+  .wave { position:absolute; bottom:0; width:200%; height:100%; animation:waveAnim 8s linear infinite; }
+  .wave1 { background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%230d2137' d='M0,60 C360,120 720,0 1080,60 C1260,90 1380,50 1440,40 L1440,120 L0,120Z'/%3E%3C/svg%3E") repeat-x bottom; background-size:720px 120px; opacity:0.8; }
+  .wave2 { background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 120'%3E%3Cpath fill='%230a1628' d='M0,80 C240,20 480,100 720,60 C960,20 1200,100 1440,70 L1440,120 L0,120Z'/%3E%3C/svg%3E") repeat-x bottom; background-size:960px 120px; animation-duration:12s; animation-direction:reverse; opacity:0.9; }
+  @keyframes waveAnim { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+  .landing-nav { position:relative; z-index:10; padding:24px 40px; display:flex; align-items:center; justify-content:space-between; }
+  .logo { display:flex; align-items:center; gap:10px; font-size:1.1rem; font-weight:700; letter-spacing:0.5px; }
+  .logo-icon { width:32px; height:32px; background:linear-gradient(135deg,var(--ocean-cyan),var(--accent)); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .nav-badge { background:rgba(0,229,255,0.15); border:1px solid var(--border2); color:var(--accent); padding:4px 12px; border-radius:20px; font-size:0.75rem; }
+
+  .hero { position:relative; z-index:10; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:60px 20px 180px; }
+  .hero-badge { background:rgba(0,229,255,0.1); border:1px solid var(--border2); color:var(--accent); padding:6px 16px; border-radius:20px; font-size:0.75rem; letter-spacing:1px; text-transform:uppercase; margin-bottom:24px; display:inline-block; }
+  .hero-title { font-size:clamp(2rem,5vw,3.8rem); font-weight:800; line-height:1.1; margin-bottom:20px; background:linear-gradient(135deg,#fff 30%,var(--ocean-light),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .hero-sub { font-size:clamp(0.95rem,2vw,1.15rem); color:var(--text-secondary); max-width:600px; line-height:1.7; margin-bottom:48px; }
+  .hero-btns { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-bottom:64px; }
+  .btn-primary { background:linear-gradient(135deg,var(--ocean-cyan),var(--ocean-light)); color:#000; font-weight:700; padding:14px 32px; border-radius:10px; border:none; cursor:pointer; font-size:0.95rem; transition:all 0.2s; box-shadow:0 4px 20px rgba(0,229,255,0.3); }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,229,255,0.4); }
+  .btn-secondary { background:transparent; color:var(--text-primary); font-weight:600; padding:13px 32px; border-radius:10px; border:1px solid var(--border2); cursor:pointer; font-size:0.95rem; transition:all 0.2s; }
+  .btn-secondary:hover { background:var(--glass2); border-color:var(--accent); color:var(--accent); }
+
+  .feature-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px; max-width:900px; width:100%; }
+  .feature-card { background:rgba(13,33,55,0.6); backdrop-filter:blur(10px); border:1px solid var(--border); border-radius:16px; padding:24px 20px; text-align:center; transition:all 0.3s; }
+  .feature-card:hover { border-color:var(--border2); transform:translateY(-4px); background:rgba(13,33,55,0.8); }
+  .feature-icon { width:48px; height:48px; margin:0 auto 14px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .fi-1 { background:rgba(0,229,255,0.15); }
+  .fi-2 { background:rgba(16,185,129,0.15); }
+  .fi-3 { background:rgba(139,92,246,0.15); }
+  .fi-4 { background:rgba(245,158,11,0.15); }
+  .feature-card h3 { font-size:0.85rem; font-weight:700; color:var(--text-primary); margin-bottom:8px; }
+  .feature-card p { font-size:0.78rem; color:var(--text-muted); line-height:1.5; }
+
+  /* ===== DASHBOARD LAYOUT ===== */
+  #dashboard { display:none; min-height:100vh; flex-direction:column; }
+  #dashboard.active { display:flex; }
+
+  .dash-header { background:var(--ocean-navy); border-bottom:1px solid var(--border); padding:0 20px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+  .header-left { display:flex; align-items:center; gap:16px; }
+  .back-btn { background:none; border:1px solid var(--border); color:var(--text-secondary); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; transition:all 0.2s; }
+  .back-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .header-title { font-size:0.9rem; font-weight:600; }
+  .header-status { display:flex; align-items:center; gap:8px; font-size:0.78rem; color:var(--text-muted); }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:#10b981; animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .dash-body { display:flex; flex:1; overflow:hidden; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar { width:var(--sidebar-w); background:var(--card-bg); border-right:1px solid var(--border); padding:16px; overflow-y:auto; flex-shrink:0; display:flex; flex-direction:column; gap:16px; }
+  .sidebar-section { background:rgba(14,58,92,0.3); border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .sidebar-title { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:var(--ocean-cyan); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .sidebar-title::before { content:''; width:3px; height:12px; background:var(--ocean-cyan); border-radius:2px; }
+
+  .upload-area { border:2px dashed var(--border2); border-radius:10px; padding:20px; text-align:center; cursor:pointer; transition:all 0.2s; background:rgba(0,229,255,0.03); }
+  .upload-area:hover { border-color:var(--accent); background:rgba(0,229,255,0.07); }
+  .upload-area input { display:none; }
+  .upload-icon { font-size:28px; margin-bottom:8px; }
+  .upload-text { font-size:0.78rem; color:var(--text-secondary); }
+  .upload-sub { font-size:0.7rem; color:var(--text-muted); margin-top:4px; }
+
+  .filter-group { margin-bottom:12px; }
+  .filter-label { font-size:0.75rem; color:var(--text-secondary); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .filter-label span { color:var(--accent); font-weight:600; }
+  input[type=range] { width:100%; accent-color:var(--ocean-cyan); height:4px; cursor:pointer; }
+  select, input[type=number], input[type=text] { width:100%; background:rgba(10,22,40,0.8); border:1px solid var(--border); color:var(--text-primary); padding:7px 10px; border-radius:6px; font-size:0.78rem; outline:none; transition:border 0.2s; }
+  select:focus, input[type=number]:focus { border-color:var(--ocean-cyan); }
+  select option { background:var(--ocean-navy); }
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .toggle-row label { font-size:0.78rem; color:var(--text-secondary); }
+  .toggle { position:relative; width:34px; height:18px; }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background:rgba(255,255,255,0.1); border-radius:9px; cursor:pointer; transition:0.2s; }
+  .toggle input:checked + .toggle-slider { background:var(--ocean-cyan); }
+  .toggle-slider::before { content:''; position:absolute; width:14px; height:14px; left:2px; top:2px; background:#fff; border-radius:50%; transition:0.2s; }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(16px); }
+
+  .action-btn { width:100%; background:linear-gradient(135deg,var(--ocean-cyan),var(--ocean-light)); color:#000; font-weight:700; padding:10px; border:none; border-radius:8px; cursor:pointer; font-size:0.82rem; transition:all 0.2s; margin-top:8px; }
+  .action-btn:hover { opacity:0.9; transform:translateY(-1px); }
+  .action-btn.secondary { background:rgba(0,229,255,0.1); color:var(--accent); border:1px solid var(--border2); }
+  .action-btn.secondary:hover { background:rgba(0,229,255,0.2); }
+
+  /* ===== MAIN CONTENT ===== */
+  .main { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:20px; }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; background:rgba(10,22,40,0.6); border:1px solid var(--border); border-radius:12px; padding:4px; width:fit-content; }
+  .tab { padding:8px 18px; border-radius:8px; border:none; background:none; color:var(--text-muted); cursor:pointer; font-size:0.82rem; font-weight:600; transition:all 0.2s; white-space:nowrap; }
+  .tab.active { background:linear-gradient(135deg,var(--ocean-mid),var(--ocean-blue)); color:var(--accent); box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+  .tab:hover:not(.active) { color:var(--text-primary); }
+
+  .tab-content { display:none; flex-direction:column; gap:20px; }
+  .tab-content.active { display:flex; }
+
+  /* CARDS */
+  .card { background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:18px; backdrop-filter:blur(10px); }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .card-title { font-size:0.85rem; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px; }
+  .card-title-dot { width:6px; height:6px; border-radius:50%; }
+  .dot-cyan { background:var(--ocean-cyan); }
+  .dot-green { background:#10b981; }
+  .dot-purple { background:#8b5cf6; }
+  .dot-amber { background:#f59e0b; }
+
+  /* STATS GRID */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; }
+  .stat-card { background:rgba(14,58,92,0.4); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .stat-label { font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.8px; margin-bottom:6px; }
+  .stat-value { font-size:1.6rem; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
+  .stat-unit { font-size:0.72rem; color:var(--text-muted); margin-top:2px; }
+  .stat-trend { font-size:0.72rem; margin-top:4px; }
+  .trend-up { color:#10b981; }
+  .trend-down { color:#ef4444; }
+
+  /* CHART */
+  .chart-wrapper { position:relative; width:100%; height:320px; }
+  .chart-controls { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-secondary); cursor:pointer; padding:4px 10px; border-radius:20px; border:1px solid transparent; transition:all 0.2s; }
+  .legend-item:hover { border-color:var(--border2); }
+  .legend-dot { width:10px; height:10px; border-radius:2px; }
+  .legend-item.muted { opacity:0.4; }
+
+  /* TABLE */
+  .table-wrap { overflow:auto; max-height:300px; border-radius:8px; border:1px solid var(--border); }
+  table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+  th { background:rgba(14,58,92,0.6); color:var(--text-secondary); font-weight:600; padding:10px 14px; text-align:left; position:sticky; top:0; z-index:1; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.6px; border-bottom:1px solid var(--border); }
+  td { padding:8px 14px; border-bottom:1px solid rgba(0,229,255,0.06); color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+  tr:hover td { background:rgba(0,229,255,0.04); color:var(--text-primary); }
+  tr:last-child td { border-bottom:none; }
+
+  .table-controls { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:12px; flex-wrap:wrap; }
+  .rows-select { background:rgba(10,22,40,0.8); border:1px solid var(--border); color:var(--text-primary); padding:5px 10px; border-radius:6px; font-size:0.75rem; cursor:pointer; }
+
+  /* TIDAL */
+  .tidal-type { display:inline-flex; align-items:center; gap:8px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); color:#c4b5fd; padding:8px 16px; border-radius:8px; font-size:0.85rem; font-weight:600; }
+  .formzahl-bar { height:8px; background:rgba(255,255,255,0.1); border-radius:4px; margin-top:6px; overflow:hidden; }
+  .formzahl-fill { height:100%; border-radius:4px; transition:width 1s ease; }
+
+  /* BADGE */
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:0.7rem; font-weight:600; }
+  .badge-cyan { background:rgba(0,229,255,0.1); color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+  .badge-green { background:rgba(16,185,129,0.1); color:#34d399; border:1px solid rgba(16,185,129,0.2); }
+  .badge-amber { background:rgba(245,158,11,0.1); color:#fbbf24; border:1px solid rgba(245,158,11,0.2); }
+  .badge-red { background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.2); }
+
+  /* NOTIFICATION */
+  .notif { position:fixed; top:70px; right:20px; background:var(--ocean-mid); border:1px solid var(--border2); border-radius:10px; padding:12px 16px; font-size:0.8rem; z-index:999; transform:translateX(120%); transition:transform 0.3s; max-width:280px; }
+  .notif.show { transform:translateX(0); }
+
+  /* LOADING */
+  .loading { display:flex; align-items:center; justify-content:center; gap:8px; padding:40px; color:var(--text-muted); font-size:0.85rem; }
+  .spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--ocean-cyan); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* RESPONSIVE */
+  @media(max-width:768px) {
+    :root { --sidebar-w: 100%; }
+    .dash-body { flex-direction:column; }
+    .sidebar { width:100%; max-height:280px; }
+    .hero-title { font-size:2rem; }
+  }
+
+  /* EXPORT */
+  .export-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .exp-btn { background:rgba(14,58,92,0.4); border:1px solid var(--border); color:var(--text-secondary); padding:7px 14px; border-radius:7px; cursor:pointer; font-size:0.75rem; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+  .exp-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* PEAK MARKERS */
+  .peak-info { display:flex; gap:16px; flex-wrap:wrap; }
+  .peak-badge { padding:6px 14px; border-radius:8px; font-size:0.78rem; font-weight:600; }
+  .peak-high { background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); }
+  .peak-low { background:rgba(96,165,250,0.15); color:#60a5fa; border:1px solid rgba(96,165,250,0.3); }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:600px) { .grid2 { grid-template-columns:1fr; } }
+
+  .section-divider { height:1px; background:linear-gradient(90deg,transparent,var(--border),transparent); margin:4px 0; }
+</style>
+</head>
+<body>
+
+<!-- ===== LANDING PAGE ===== -->
+<div id="landing">
+  <div class="ocean-bg"></div>
+  <div class="stars" id="stars"></div>
+  <div class="wave-container">
+    <div class="wave wave1"></div>
+    <div class="wave wave2"></div>
+  </div>
+
+  <nav class="landing-nav">
+    <div class="logo">
+      <div class="logo-icon">🌊</div>
+      OceanWave
+    </div>
+    <div class="nav-badge">v2.0 Scientific</div>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-badge">🛰️ Oceanographic Analysis Platform</div>
+    <h1 class="hero-title">Ocean Water Level<br>Analysis Dashboard</h1>
+    <p class="hero-sub">Platform analisis ilmiah untuk data elevasi muka air laut berbasis time series. Visualisasi interaktif, filtering sinyal lanjutan, dan analisis pasang surut harmonik.</p>
+    <div class="hero-btns">
+      <button class="btn-primary" onclick="startDashboard(false)">🚀 Mulai Analisis</button>
+      <button class="btn-secondary" onclick="startDashboard(true)">📊 Gunakan Data Dummy</button>
+    </div>
+    <div class="feature-cards">
+      <div class="feature-card">
+        <div class="feature-icon fi-1">📈</div>
+        <h3>Visualisasi Time Series</h3>
+        <p>Grafik interaktif dengan zoom, pan, dan tooltip overlay multi-layer</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-2">🔬</div>
+        <h3>Filtering Sinyal</h3>
+        <p>Moving Average, Low/High-pass, Band-pass, Median, Savitzky-Golay</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-3">🌙</div>
+        <h3>Analisis Pasang Surut</h3>
+        <p>Metode harmonik UTide: M2, S2, K1, O1, MSL, Formzahl, klasifikasi tipe</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon fi-4">📥</div>
+        <h3>Export & Laporan</h3>
+        <p>Download data CSV, grafik PNG, dan hasil analisis lengkap</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="dashboard">
+  <header class="dash-header">
+    <div class="header-left">
+      <button class="back-btn" onclick="goBack()">← Beranda</button>
+      <div class="logo" style="font-size:0.85rem">
+        <div class="logo-icon" style="width:26px;height:26px;font-size:14px">🌊</div>
+        OceanWave Dashboard
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span id="header-info">Siap — Muat data untuk memulai</span>
+    </div>
+  </header>
+
+  <div class="dash-body">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <!-- Data Input -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">📁 Input Data</div>
+        <div class="upload-area" onclick="document.getElementById('file-input').click()">
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="loadFile(this)">
+          <div class="upload-icon">📂</div>
+          <div class="upload-text">Upload CSV / Excel</div>
+          <div class="upload-sub">Kolom: time, water_level</div>
+        </div>
+        <button class="action-btn secondary" onclick="loadDummy()" style="margin-top:10px">📊 Data Dummy</button>
+        <div id="data-info" style="display:none;margin-top:10px;font-size:0.72rem;color:var(--text-muted);line-height:1.6"></div>
+        <div class="toggle-row" style="margin-top:10px">
+          <label>Interpolasi Missing</label>
+          <label class="toggle"><input type="checkbox" id="interp-toggle" checked><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Filtering -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">🔬 Filter & Processing</div>
+
+        <div class="filter-group">
+          <div class="filter-label">Metode Filter <span id="filter-type-val"></span></div>
+          <select id="filter-type" onchange="updateFilterUI()">
+            <option value="none">— Tidak ada filter —</option>
+            <option value="moving_avg">Moving Average</option>
+            <option value="lowpass">Low-pass Filter</option>
+            <option value="highpass">High-pass Filter</option>
+            <option value="bandpass">Band-pass Filter</option>
+            <option value="median">Median Filter</option>
+            <option value="savgol">Savitzky-Golay</option>
+            <option value="detrend_linear">Detrending Linear</option>
+            <option value="detrend_poly">Detrending Polinomial</option>
+          </select>
+        </div>
+
+        <div id="filter-params">
+          <div class="filter-group" id="fp-window">
+            <div class="filter-label">Window Size <span id="window-val">24</span></div>
+            <input type="range" id="window-size" min="3" max="120" value="24" step="1" oninput="document.getElementById('window-val').textContent=this.value;applyFilterRealtime()">
+          </div>
+          <div class="filter-group" id="fp-cutoff1" style="display:none">
+            <div class="filter-label">Cutoff Freq <span id="cutoff1-val">0.1</span> cy/hr</div>
+            <input type="range" id="cutoff1" min="0.01" max="1" value="0.1" step="0.01" oninput="document.getElementById('cutoff1-val').textContent=parseFloat(this.value).toFixed(2);applyFilterRealtime()">
+          </div>
+          <div class="filter-group" id="fp-cutoff2" style="display:none">
+            <div class="filter-label">Cutoff High <span id="cutoff2-val">0.5</span> cy/hr</div>
+            <input type="range" id="cutoff2" min="0.01" max="1" value="0.5" step="0.01" oninput="document.getElementById('cutoff2-val').textContent=parseFloat(this.value).toFixed(2);applyFilterRealtime()">
+          </div>
+          <div class="filter-group" id="fp-poly" style="display:none">
+            <div class="filter-label">Derajat Polinom <span id="poly-val">3</span></div>
+            <input type="range" id="poly-deg" min="1" max="10" value="3" step="1" oninput="document.getElementById('poly-val').textContent=this.value;applyFilterRealtime()">
+          </div>
+        </div>
+        <button class="action-btn" onclick="applyFilter()">⚙️ Terapkan Filter</button>
+      </div>
+
+      <!-- UTide -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">🌙 Analisis UTide</div>
+        <div class="filter-group">
+          <div class="filter-label">Lintang (°)</div>
+          <input type="number" id="latitude" value="-6.5" step="0.1" min="-90" max="90">
+        </div>
+        <div class="filter-group">
+          <div class="filter-label">Komponen Harmonik</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" checked id="comp-M2"> M2</label>
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" checked id="comp-S2"> S2</label>
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" checked id="comp-K1"> K1</label>
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" checked id="comp-O1"> O1</label>
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="comp-N2"> N2</label>
+            <label style="font-size:0.72rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><input type="checkbox" id="comp-K2"> K2</label>
+          </div>
+        </div>
+        <button class="action-btn" onclick="runUTide()">🔭 Jalankan Analisis</button>
+      </div>
+
+      <!-- Export -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">📥 Export</div>
+        <div class="export-row">
+          <button class="exp-btn" onclick="exportCSV('raw')">📄 Raw CSV</button>
+          <button class="exp-btn" onclick="exportCSV('filtered')">📄 Filtered CSV</button>
+          <button class="exp-btn" onclick="exportCSV('utide')">📄 UTide CSV</button>
+          <button class="exp-btn" onclick="exportChart()">🖼️ Grafik PNG</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <!-- TABS -->
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('tab-raw',this)">📊 Raw Data</button>
+        <button class="tab" onclick="switchTab('tab-filter',this)">🔬 Filtering</button>
+        <button class="tab" onclick="switchTab('tab-tidal',this)">🌙 Tidal Analysis</button>
+        <button class="tab" onclick="switchTab('tab-stats',this)">📉 Statistik</button>
+      </div>
+
+      <!-- TAB 1: RAW DATA -->
+      <div id="tab-raw" class="tab-content active">
+        <div class="stats-grid" id="stats-raw">
+          <div class="stat-card"><div class="stat-label">Total Data</div><div class="stat-value" id="s-total">—</div><div class="stat-unit">observasi</div></div>
+          <div class="stat-card"><div class="stat-label">Durasi</div><div class="stat-value" id="s-dur">—</div><div class="stat-unit">hari</div></div>
+          <div class="stat-card"><div class="stat-label">Interval</div><div class="stat-value" id="s-intv">—</div><div class="stat-unit">menit</div></div>
+          <div class="stat-card"><div class="stat-label">Missing</div><div class="stat-value" id="s-miss">—</div><div class="stat-unit">% data</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-cyan"></div>Time Series — Data Mentah</div>
+            <div style="display:flex;gap:8px">
+              <div class="legend-item" id="leg-raw" onclick="toggleSeries('raw')">
+                <div class="legend-dot" style="background:#06b6d4"></div> Raw
+              </div>
+              <div class="legend-item" id="leg-filt" onclick="toggleSeries('filtered')">
+                <div class="legend-dot" style="background:#10b981"></div> Filtered
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </div>
+
+        <!-- RAW TABLE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-cyan"></div>Preview Data RAW</div>
+            <div class="table-controls">
+              <select class="rows-select" id="raw-rows" onchange="renderRawTable()">
+                <option value="20">20 baris</option>
+                <option value="50">50 baris</option>
+                <option value="100">100 baris</option>
+                <option value="all">Semua</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="raw-table">
+              <thead><tr><th>#</th><th>Timestamp</th><th>Water Level (m)</th><th>Status</th></tr></thead>
+              <tbody id="raw-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: FILTERING -->
+      <div id="tab-filter" class="tab-content">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-green"></div>Overlay: Raw vs Filtered</div>
+            <div class="badge badge-green" id="filter-badge">—</div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="filterChart"></canvas>
+          </div>
+        </div>
+
+        <!-- FILTERED TABLE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-green"></div>Preview Data FILTERED</div>
+            <div class="table-controls">
+              <select class="rows-select" id="filt-rows" onchange="renderFilterTable()">
+                <option value="20">20 baris</option>
+                <option value="50">50 baris</option>
+                <option value="100">100 baris</option>
+                <option value="all">Semua</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Timestamp</th><th>Raw (m)</th><th>Filtered (m)</th><th>Diff (m)</th></tr></thead>
+              <tbody id="filt-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: TIDAL -->
+      <div id="tab-tidal" class="tab-content">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-title" style="margin-bottom:14px"><div class="card-title-dot dot-purple"></div>Tipe Pasang Surut</div>
+            <div class="tidal-type" id="tidal-type-badge">⏳ Belum dianalisis</div>
+            <div style="margin-top:16px;font-size:0.78rem;color:var(--text-muted)">Formzahl Number (F):</div>
+            <div style="font-size:1.4rem;font-weight:800;color:#c4b5fd;margin:4px 0" id="formzahl-val">—</div>
+            <div class="formzahl-bar"><div class="formzahl-fill" id="formzahl-fill" style="width:0%;background:#8b5cf6"></div></div>
+          </div>
+          <div class="card">
+            <div class="card-title" style="margin-bottom:14px"><div class="card-title-dot dot-purple"></div>Mean Sea Level & Range</div>
+            <div class="stats-grid" style="grid-template-columns:1fr 1fr">
+              <div class="stat-card"><div class="stat-label">MSL</div><div class="stat-value" id="msl-val" style="font-size:1.3rem">—</div><div class="stat-unit">meter</div></div>
+              <div class="stat-card"><div class="stat-label">Tidal Range</div><div class="stat-value" id="range-val" style="font-size:1.3rem">—</div><div class="stat-unit">meter</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-purple"></div>Rekonstruksi Harmonik (UTide)</div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="tidalChart"></canvas>
+          </div>
+        </div>
+
+        <!-- UTide Components Table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-purple"></div>Komponen Harmonik UTide</div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Komponen</th><th>Periode (jam)</th><th>Amplitudo (m)</th><th>Fase (°)</th><th>Kontribusi</th><th>Tipe</th></tr></thead>
+              <tbody id="utide-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Comparison table -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-purple"></div>Perbandingan: Data Asli vs Rekonstruksi</div>
+            <div class="table-controls">
+              <select class="rows-select" id="comp-rows" onchange="renderCompTable()">
+                <option value="20">20 baris</option>
+                <option value="50">50 baris</option>
+                <option value="100">100 baris</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Timestamp</th><th>Asli (m)</th><th>Rekonstruksi (m)</th><th>Residual (m)</th></tr></thead>
+              <tbody id="comp-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: STATISTIK -->
+      <div id="tab-stats" class="tab-content">
+        <div class="stats-grid" id="stats-main">
+          <div class="stat-card"><div class="stat-label">Mean</div><div class="stat-value" id="st-mean">—</div><div class="stat-unit">meter</div></div>
+          <div class="stat-card"><div class="stat-label">Max (HHW)</div><div class="stat-value" id="st-max">—</div><div class="stat-unit">meter</div></div>
+          <div class="stat-card"><div class="stat-label">Min (LLW)</div><div class="stat-value" id="st-min">—</div><div class="stat-unit">meter</div></div>
+          <div class="stat-card"><div class="stat-label">Std Dev</div><div class="stat-value" id="st-std">—</div><div class="stat-unit">meter</div></div>
+          <div class="stat-card"><div class="stat-label">Median</div><div class="stat-value" id="st-med">—</div><div class="stat-unit">meter</div></div>
+          <div class="stat-card"><div class="stat-label">Range</div><div class="stat-value" id="st-range">—</div><div class="stat-unit">meter</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-amber"></div>Deteksi Puncak & Lembah</div>
+            <div class="peak-info" id="peak-info"></div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="peakChart"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-amber"></div>Analisis Trend</div>
+          </div>
+          <div class="chart-wrapper" style="height:220px">
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div id="trend-info" style="margin-top:12px;font-size:0.78rem;color:var(--text-muted)"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-dot dot-amber"></div>Distribusi Water Level</div>
+          </div>
+          <div class="chart-wrapper" style="height:220px">
+            <canvas id="histChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- NOTIFICATION -->
+<div class="notif" id="notif"></div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const state = {
+  rawTimes: [], rawValues: [],
+  filteredValues: [],
+  utideRecon: [], utideComponents: [],
+  peaks: [], troughs: [],
+  chartInstances: {},
+  visRaw: true, visFiltered: true
+};
+
+// ============================================================
+//  STARS
+// ============================================================
+(function genStars(){
+  const c = document.getElementById('stars');
+  for(let i=0;i<150;i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*80+'%';
+    s.style.animationDelay = Math.random()*4+'s';
+    s.style.animationDuration = (2+Math.random()*3)+'s';
+    if(Math.random()>0.7){ s.style.width='3px'; s.style.height='3px'; }
+    c.appendChild(s);
+  }
+})();
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function startDashboard(useDummy){
+  document.getElementById('landing').style.display='none';
+  const db = document.getElementById('dashboard');
+  db.classList.add('active');
+  if(useDummy) setTimeout(loadDummy,300);
+}
+function goBack(){
+  document.getElementById('dashboard').classList.remove('active');
+  document.getElementById('landing').style.display='flex';
+}
+
+// ============================================================
+//  DUMMY DATA GENERATION (Semi-diurnal tidal)
+// ============================================================
+function generateDummy(){
+  const times=[], vals=[];
+  const start = new Date('2024-01-01T00:00:00');
+  const n = 720; // 30 hari × 24 jam
+  // Tidal constituents: M2(~12.42h), S2(12h), K1(23.93h), O1(25.82h)
+  const M2_amp=0.65, M2_per=12.4206, M2_ph=0;
+  const S2_amp=0.22, S2_per=12.0,    S2_ph=30;
+  const K1_amp=0.14, K1_per=23.9345, K1_ph=60;
+  const O1_amp=0.10, O1_per=25.8193, O1_ph=90;
+  const N2_amp=0.12, N2_per=12.6583, N2_ph=45;
+  const MSL = 0.75;
+  const trend = 0.0001;
+  for(let i=0;i<n;i++){
+    const t = new Date(start.getTime()+i*3600000);
+    const h = i; // hours
+    const noise = (Math.random()-0.5)*0.05;
+    const v = MSL
+      + M2_amp*Math.cos(2*Math.PI*h/M2_per - M2_ph*Math.PI/180)
+      + S2_amp*Math.cos(2*Math.PI*h/S2_per - S2_ph*Math.PI/180)
+      + K1_amp*Math.cos(2*Math.PI*h/K1_per - K1_ph*Math.PI/180)
+      + O1_amp*Math.cos(2*Math.PI*h/O1_per - O1_ph*Math.PI/180)
+      + N2_amp*Math.cos(2*Math.PI*h/N2_per - N2_ph*Math.PI/180)
+      + trend*i + noise;
+    times.push(t);
+    // Introduce a few NaN
+    vals.push((i%73===0 && Math.random()>0.5) ? null : parseFloat(v.toFixed(4)));
+  }
+  return {times, vals};
+}
+
+// ============================================================
+//  LOAD DATA
+// ============================================================
+function loadDummy(){
+  const {times,vals} = generateDummy();
+  processData(times, vals, 'Data Dummy (Semi-diurnal, 30 hari)');
+}
+
+function loadFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(ext==='csv'){
+    const reader = new FileReader();
+    reader.onload = e => {
+      const result = Papa.parse(e.target.result,{header:true,dynamicTyping:true,skipEmptyLines:true});
+      parseCSVData(result.data, file.name);
+    };
+    reader.readAsText(file);
+  } else {
+    showNotif('⚠️ Format Excel memerlukan konversi ke CSV terlebih dahulu','#f59e0b');
+  }
+}
+
+function parseCSVData(rows, fname){
+  const timeFields = ['time','Time','TIME','datetime','Datetime','timestamp','Timestamp','date','Date'];
+  const valFields  = ['water_level','Water_Level','WATER_LEVEL','level','Level','wl','WL','value','Value','elevation'];
+  let tf=null, vf=null;
+  if(!rows.length){ showNotif('❌ File kosong','#ef4444'); return; }
+  const keys = Object.keys(rows[0]);
+  tf = keys.find(k=>timeFields.some(t=>k.toLowerCase().includes(t.toLowerCase())));
+  vf = keys.find(k=>valFields.some(v=>k.toLowerCase().includes(v.toLowerCase())));
+  if(!tf||!vf){ showNotif('❌ Kolom time/water_level tidak ditemukan','#ef4444'); return; }
+  const times=[], vals=[];
+  rows.forEach(r=>{
+    const t=new Date(r[tf]); const v=parseFloat(r[vf]);
+    if(!isNaN(t.getTime())) { times.push(t); vals.push(isNaN(v)?null:v); }
+  });
+  processData(times, vals, fname);
+}
+
+function processData(times, vals, label){
+  if(!times.length){ showNotif('❌ Tidak ada data valid','#ef4444'); return; }
+  // Interpolate missing
+  const interp = document.getElementById('interp-toggle').checked;
+  let processed = [...vals];
+  if(interp){
+    for(let i=0;i<processed.length;i++){
+      if(processed[i]===null){
+        let prev=-1,next=-1;
+        for(let j=i-1;j>=0;j--){ if(processed[j]!==null){prev=j;break;} }
+        for(let j=i+1;j<processed.length;j++){ if(processed[j]!==null){next=j;break;} }
+        if(prev>=0&&next>=0) processed[i]=processed[prev]+(processed[next]-processed[prev])*(i-prev)/(next-prev);
+        else if(prev>=0) processed[i]=processed[prev];
+        else if(next>=0) processed[i]=processed[next];
+      }
+    }
+  }
+  state.rawTimes = times;
+  state.rawValues = processed.map(v=>v===null?NaN:v);
+  state.filteredValues = [...state.rawValues];
+  const missing = vals.filter(v=>v===null||isNaN(v)).length;
+  const duration = ((times[times.length-1]-times[0])/86400000).toFixed(1);
+  const intv = times.length>1?((times[1]-times[0])/60000).toFixed(0):'—';
+  document.getElementById('data-info').style.display='block';
+  document.getElementById('data-info').innerHTML=`
+    <strong style="color:var(--accent)">${label}</strong><br>
+    📊 ${times.length} observasi &bull; ${duration} hari<br>
+    ⏱ Interval: ${intv} menit<br>
+    ❓ Missing: ${missing} (${((missing/times.length)*100).toFixed(1)}%)
+  `;
+  document.getElementById('header-info').textContent=`${label} — ${times.length} pts`;
+  // Stats
+  const clean = state.rawValues.filter(v=>!isNaN(v));
+  setEl('s-total',times.length);
+  setEl('s-dur',duration);
+  setEl('s-intv',intv);
+  setEl('s-miss',((missing/times.length)*100).toFixed(1));
+  computeStats(clean);
+  detectPeaks();
+  initCharts();
+  renderRawTable();
+  renderFilterTable();
+  showNotif('✅ Data berhasil dimuat','#10b981');
+}
+
+// ============================================================
+//  STATS
+// ============================================================
+function computeStats(vals){
+  if(!vals.length) return;
+  const sorted=[...vals].sort((a,b)=>a-b);
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  const max=Math.max(...vals); const min=Math.min(...vals);
+  const variance=vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length;
+  const std=Math.sqrt(variance);
+  const med=sorted.length%2===0?(sorted[sorted.length/2-1]+sorted[sorted.length/2])/2:sorted[Math.floor(sorted.length/2)];
+  ['mean','max','min','std','med','range'].forEach(k=>{
+    const el=document.getElementById('st-'+k);
+    if(!el) return;
+    const v={mean,max,min,std,med,range:max-min}[k];
+    if(el) el.textContent=v.toFixed(3);
+  });
+}
+
+// ============================================================
+//  PEAK DETECTION
+// ============================================================
+function detectPeaks(){
+  const v=state.rawValues; const n=v.length;
+  state.peaks=[]; state.troughs=[];
+  const w=6;
+  for(let i=w;i<n-w;i++){
+    if(isNaN(v[i])) continue;
+    let isMax=true,isMin=true;
+    for(let j=i-w;j<=i+w;j++){
+      if(j!==i&&!isNaN(v[j])){
+        if(v[j]>=v[i]) isMax=false;
+        if(v[j]<=v[i]) isMin=false;
+      }
+    }
+    if(isMax) state.peaks.push(i);
+    if(isMin) state.troughs.push(i);
+  }
+  const peakVals=state.peaks.map(i=>v[i]).filter(x=>!isNaN(x));
+  const troughVals=state.troughs.map(i=>v[i]).filter(x=>!isNaN(x));
+  const hhw=peakVals.length?Math.max(...peakVals).toFixed(3):'—';
+  const llw=troughVals.length?Math.min(...troughVals).toFixed(3):'—';
+  document.getElementById('peak-info').innerHTML=`
+    <span class="peak-badge peak-high">▲ HHW: ${hhw} m (${state.peaks.length} peaks)</span>
+    <span class="peak-badge peak-low">▼ LLW: ${llw} m (${state.troughs.length} troughs)</span>
+  `;
+}
+
+// ============================================================
+//  FILTERING
+// ============================================================
+function updateFilterUI(){
+  const type=document.getElementById('filter-type').value;
+  document.getElementById('fp-window').style.display=['moving_avg','median','savgol'].includes(type)?'block':'none';
+  document.getElementById('fp-cutoff1').style.display=['lowpass','highpass','bandpass'].includes(type)?'block':'none';
+  document.getElementById('fp-cutoff2').style.display=['bandpass'].includes(type)?'block':'none';
+  document.getElementById('fp-poly').style.display=type==='detrend_poly'?'block':'none';
+}
+
+function applyFilterRealtime(){ if(state.rawValues.length) applyFilter(); }
+
+function applyFilter(){
+  if(!state.rawValues.length){ showNotif('⚠️ Muat data terlebih dahulu','#f59e0b'); return; }
+  const type=document.getElementById('filter-type').value;
+  const vals=state.rawValues;
+  let result=[...vals];
+  if(type==='none'){ state.filteredValues=[...vals]; updateCharts(); showNotif('ℹ️ Filter dinonaktifkan','#06b6d4'); return; }
+  const w=parseInt(document.getElementById('window-size').value)||24;
+  const c1=parseFloat(document.getElementById('cutoff1').value)||0.1;
+  const c2=parseFloat(document.getElementById('cutoff2').value)||0.5;
+  const deg=parseInt(document.getElementById('poly-deg').value)||3;
+
+  if(type==='moving_avg') result=movingAverage(vals,w);
+  else if(type==='median') result=medianFilter(vals,w);
+  else if(type==='savgol') result=savitzkyGolay(vals,Math.min(w,vals.length-2));
+  else if(type==='lowpass') result=butterworthLP(vals,c1);
+  else if(type==='highpass') result=butterworthHP(vals,c1);
+  else if(type==='bandpass') result=bandPass(vals,c1,c2);
+  else if(type==='detrend_linear') result=detrendLinear(vals);
+  else if(type==='detrend_poly') result=detrendPoly(vals,deg);
+
+  state.filteredValues=result;
+  updateCharts();
+  const filterNames={'moving_avg':'Moving Average (w='+w+')','median':'Median (w='+w+')','savgol':'Savitzky-Golay','lowpass':'Low-pass (fc='+c1+')','highpass':'High-pass (fc='+c1+')','bandpass':'Band-pass','detrend_linear':'Detrend Linear','detrend_poly':'Detrend Poly (d='+deg+')'};
+  document.getElementById('filter-badge').textContent = filterNames[type]||type;
+  renderFilterTable();
+  showNotif('✅ Filter diterapkan','#10b981');
+}
+
+function movingAverage(v,w){
+  return v.map((x,i)=>{
+    const s=Math.max(0,i-Math.floor(w/2)), e=Math.min(v.length,i+Math.ceil(w/2));
+    const slice=v.slice(s,e).filter(x=>!isNaN(x));
+    return slice.length?slice.reduce((a,b)=>a+b,0)/slice.length:NaN;
+  });
+}
+function medianFilter(v,w){
+  return v.map((x,i)=>{
+    const s=Math.max(0,i-Math.floor(w/2)), e=Math.min(v.length,i+Math.ceil(w/2));
+    const slice=v.slice(s,e).filter(x=>!isNaN(x)).sort((a,b)=>a-b);
+    if(!slice.length) return NaN;
+    return slice.length%2===0?(slice[slice.length/2-1]+slice[slice.length/2])/2:slice[Math.floor(slice.length/2)];
+  });
+}
+function savitzkyGolay(v,w){
+  w=Math.max(5,w%2===0?w+1:w);
+  const hf=Math.floor(w/2);
+  return v.map((x,i)=>{
+    const s=Math.max(0,i-hf), e=Math.min(v.length,i+hf+1);
+    const slice=v.slice(s,e).filter(x=>!isNaN(x));
+    return movingAverage(slice,slice.length)[Math.floor(slice.length/2)];
+  });
+}
+function butterworthLP(v,fc){
+  const rc=1/(2*Math.PI*fc), dt=1;
+  const alpha=dt/(rc+dt);
+  let res=new Array(v.length);
+  res[0]=isNaN(v[0])?0:v[0];
+  for(let i=1;i<v.length;i++) res[i]=isNaN(v[i])?res[i-1]:res[i-1]+alpha*(v[i]-res[i-1]);
+  return res;
+}
+function butterworthHP(v,fc){
+  const lp=butterworthLP(v,fc);
+  return v.map((x,i)=>isNaN(x)?NaN:x-lp[i]);
+}
+function bandPass(v,fc1,fc2){
+  const hp=butterworthHP(v,fc1);
+  return butterworthLP(hp,fc2);
+}
+function detrendLinear(v){
+  const clean=v.map((x,i)=>isNaN(x)?null:{x:i,y:x}).filter(Boolean);
+  if(clean.length<2) return v;
+  const n=clean.length;
+  const sumX=clean.reduce((a,b)=>a+b.x,0);
+  const sumY=clean.reduce((a,b)=>a+b.y,0);
+  const sumXY=clean.reduce((a,b)=>a+b.x*b.y,0);
+  const sumX2=clean.reduce((a,b)=>a+b.x*b.x,0);
+  const m=(n*sumXY-sumX*sumY)/(n*sumX2-sumX**2);
+  const b=(sumY-m*sumX)/n;
+  return v.map((x,i)=>isNaN(x)?NaN:x-(m*i+b));
+}
+function detrendPoly(v,deg){
+  const clean=v.map((x,i)=>isNaN(x)?null:{x:i,y:x}).filter(Boolean);
+  if(clean.length<deg+1) return detrendLinear(v);
+  // Fit polynomial using least squares (simplified using moving average baseline)
+  const window=Math.max(50,Math.floor(v.length/10));
+  const trend=movingAverage(v,window);
+  return v.map((x,i)=>isNaN(x)?NaN:x-trend[i]);
+}
+
+// ============================================================
+//  UTIDE (JavaScript implementation)
+// ============================================================
+const TIDAL_CONSTITUENTS = {
+  M2: {period:12.4206012,description:'Principal lunar semidiurnal'},
+  S2: {period:12.0,description:'Principal solar semidiurnal'},
+  N2: {period:12.6583482,description:'Larger lunar elliptic semidiurnal'},
+  K2: {period:11.9672348,description:'Lunisolar semidiurnal'},
+  K1: {period:23.9344722,description:'Lunar diurnal'},
+  O1: {period:25.8193417,description:'Lunar diurnal'},
+  P1: {period:24.0658902,description:'Solar diurnal'},
+  Q1: {period:26.8683567,description:'Larger lunar elliptic diurnal'},
+};
+
+function runUTide(){
+  if(!state.rawValues.length){ showNotif('⚠️ Muat data terlebih dahulu','#f59e0b'); return; }
+  showNotif('⏳ Menghitung analisis harmonik...','#06b6d4');
+  setTimeout(()=>{
+    const comps=[];
+    ['M2','S2','K1','O1','N2','K2'].forEach(k=>{
+      if(document.getElementById('comp-'+k)?.checked) comps.push(k);
+    });
+    const result=harmonicFit(state.rawTimes, state.rawValues, comps);
+    state.utideRecon=result.reconstruction;
+    state.utideComponents=result.components;
+    // MSL, Formzahl
+    const clean=state.rawValues.filter(v=>!isNaN(v));
+    const msl=clean.reduce((a,b)=>a+b,0)/clean.length;
+    setEl('msl-val',msl.toFixed(3));
+    // Formzahl: (K1+O1)/(M2+S2)
+    const M2=result.components.find(c=>c.name==='M2');
+    const S2=result.components.find(c=>c.name==='S2');
+    const K1c=result.components.find(c=>c.name==='K1');
+    const O1c=result.components.find(c=>c.name==='O1');
+    const F=((K1c?.amp||0)+(O1c?.amp||0))/Math.max(0.001,(M2?.amp||0)+(S2?.amp||0));
+    setEl('formzahl-val',F.toFixed(3));
+    const fill=document.getElementById('formzahl-fill');
+    if(fill){ fill.style.width=Math.min(100,F/3*100)+'%'; }
+    let type=''; let badge='';
+    if(F<0.25){type='Semi-diurnal';badge='🌊 Semi-Diurnal (F < 0.25)';}
+    else if(F<1.5){type='Mixed (semi-diurnal dominant)';badge='🌊 Mixed Dominan Semi-Diurnal';}
+    else if(F<3.0){type='Mixed (diurnal dominant)';badge='🌊 Mixed Dominan Diurnal';}
+    else{type='Diurnal';badge='🌅 Diurnal (F > 3.0)';}
+    document.getElementById('tidal-type-badge').textContent=badge;
+    // Tidal range
+    const reconClean=result.reconstruction.filter(v=>!isNaN(v));
+    const tr=reconClean.length?(Math.max(...reconClean)-Math.min(...reconClean)).toFixed(3):'—';
+    setEl('range-val',tr);
+    renderUTideTable();
+    renderCompTable();
+    updateTidalChart();
+    showNotif('✅ Analisis UTide selesai','#10b981');
+  },50);
+}
+
+function harmonicFit(times, vals, compNames){
+  const clean=vals.map((v,i)=>isNaN(v)?null:{v,i}).filter(Boolean);
+  const n=clean.length;
+  if(n<10) return {reconstruction:[...vals],components:[]};
+  const t0=times[0].getTime()/3600000;
+  // Build design matrix A
+  const cols=[];
+  cols.push(Array(n).fill(1)); // DC (MSL)
+  compNames.forEach(name=>{
+    const per=TIDAL_CONSTITUENTS[name]?.period||12;
+    const omega=2*Math.PI/per;
+    cols.push(clean.map(({i})=>Math.cos(omega*(times[i].getTime()/3600000-t0))));
+    cols.push(clean.map(({i})=>Math.sin(omega*(times[i].getTime()/3600000-t0))));
+  });
+  const A=clean.map((_,r)=>cols.map(c=>c[r]));
+  const y=clean.map(({v})=>v);
+  // Least squares: (A'A)^-1 A'y
+  const coef=leastSquares(A,y);
+  // Extract amplitudes and phases
+  const components=[];
+  compNames.forEach((name,i)=>{
+    const ci=1+i*2, si=2+i*2;
+    const c=coef[ci]||0, s=coef[si]||0;
+    const amp=Math.sqrt(c*c+s*s);
+    const phase=((Math.atan2(-s,c)*180/Math.PI)+360)%360;
+    components.push({name,amp:parseFloat(amp.toFixed(4)),phase:parseFloat(phase.toFixed(1)),period:TIDAL_CONSTITUENTS[name]?.period||12});
+  });
+  // Reconstruct full time series
+  const msl=coef[0]||0;
+  const reconstruction=times.map((t,idx)=>{
+    if(isNaN(vals[idx])) return NaN;
+    let v=msl;
+    compNames.forEach((name,i)=>{
+      const per=TIDAL_CONSTITUENTS[name]?.period||12;
+      const omega=2*Math.PI/per;
+      const c=coef[1+i*2]||0, s=coef[2+i*2]||0;
+      v+=c*Math.cos(omega*(t.getTime()/3600000-t0))+s*Math.sin(omega*(t.getTime()/3600000-t0));
+    });
+    return parseFloat(v.toFixed(4));
+  });
+  return {reconstruction,components,msl};
+}
+
+function leastSquares(A,y){
+  // Normal equations: (A'A)x = A'y
+  const m=A.length, n=A[0].length;
+  // A'A
+  const AtA=Array(n).fill(0).map(()=>Array(n).fill(0));
+  for(let i=0;i<n;i++) for(let j=0;j<n;j++) for(let k=0;k<m;k++) AtA[i][j]+=A[k][i]*A[k][j];
+  // A'y
+  const Aty=Array(n).fill(0);
+  for(let i=0;i<n;i++) for(let k=0;k<m;k++) Aty[i]+=A[k][i]*y[k];
+  // Solve via Gaussian elimination
+  return gaussElim(AtA,Aty);
+}
+
+function gaussElim(A,b){
+  const n=A.length;
+  const M=A.map((r,i)=>[...r,b[i]]);
+  for(let col=0;col<n;col++){
+    let maxRow=col;
+    for(let row=col+1;row<n;row++) if(Math.abs(M[row][col])>Math.abs(M[maxRow][col])) maxRow=row;
+    [M[col],M[maxRow]]=[M[maxRow],M[col]];
+    if(Math.abs(M[col][col])<1e-12) continue;
+    for(let row=col+1;row<n;row++){
+      const f=M[row][col]/M[col][col];
+      for(let j=col;j<=n;j++) M[row][j]-=f*M[col][j];
+    }
+  }
+  const x=Array(n).fill(0);
+  for(let i=n-1;i>=0;i--){
+    if(Math.abs(M[i][i])<1e-12) continue;
+    x[i]=M[i][n]/M[i][i];
+    for(let k=i-1;k>=0;k--) M[k][n]-=M[k][i]*x[i];
+  }
+  return x;
+}
+
+// ============================================================
+//  CHARTS
+// ============================================================
+const COLORS={raw:'#06b6d4',filtered:'#10b981',tidal:'#8b5cf6',recon:'#f59e0b',trend:'#f43f5e'};
+
+function initCharts(){
+  destroyChart('mainChart'); destroyChart('filterChart');
+  destroyChart('peakChart'); destroyChart('trendChart'); destroyChart('histChart');
+  buildMainChart(); buildFilterChart(); buildPeakChart(); buildTrendChart(); buildHistChart();
+}
+
+function destroyChart(id){
+  if(state.chartInstances[id]){ state.chartInstances[id].destroy(); delete state.chartInstances[id]; }
+}
+
+function getLabels(n){
+  if(!state.rawTimes.length) return [];
+  const step=Math.max(1,Math.floor(state.rawTimes.length/n));
+  return state.rawTimes.map((t,i)=>i%step===0?formatTime(t):null);
+}
+
+function formatTime(t){ return t.toLocaleDateString('id-ID',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+function chartLabels(){ return state.rawTimes.map(t=>t.toISOString().slice(0,16).replace('T',' ')); }
+
+function buildMainChart(){
+  const ctx=document.getElementById('mainChart').getContext('2d');
+  state.chartInstances['mainChart']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:chartLabels(),
+      datasets:[
+        {label:'Raw',data:state.rawValues,borderColor:COLORS.raw,borderWidth:1.2,pointRadius:0,tension:0.2,fill:false},
+        {label:'Filtered',data:state.filteredValues,borderColor:COLORS.filtered,borderWidth:1.5,pointRadius:0,tension:0.3,fill:false,borderDash:[]}
+      ]
+    },
+    options:chartOpts('Water Level (m)')
+  });
+}
+function buildFilterChart(){
+  const ctx=document.getElementById('filterChart').getContext('2d');
+  state.chartInstances['filterChart']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:chartLabels(),
+      datasets:[
+        {label:'Raw',data:state.rawValues,borderColor:COLORS.raw,borderWidth:1,pointRadius:0,tension:0.2,fill:false,borderDash:[4,3]},
+        {label:'Filtered',data:state.filteredValues,borderColor:COLORS.filtered,borderWidth:2,pointRadius:0,tension:0.3,fill:false}
+      ]
+    },
+    options:chartOpts('Water Level (m)')
+  });
+}
+function buildPeakChart(){
+  const ctx=document.getElementById('peakChart').getContext('2d');
+  const peakData=state.rawValues.map((v,i)=>state.peaks.includes(i)?v:null);
+  const troughData=state.rawValues.map((v,i)=>state.troughs.includes(i)?v:null);
+  state.chartInstances['peakChart']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:chartLabels(),
+      datasets:[
+        {label:'Water Level',data:state.rawValues,borderColor:COLORS.raw,borderWidth:1,pointRadius:0,tension:0.2,fill:false},
+        {label:'High Tide',data:peakData,borderColor:'transparent',pointRadius:4,pointBackgroundColor:'#fbbf24',showLine:false,pointStyle:'triangle'},
+        {label:'Low Tide',data:troughData,borderColor:'transparent',pointRadius:4,pointBackgroundColor:'#60a5fa',showLine:false,pointStyle:'triangle',pointRotation:180}
+      ]
+    },
+    options:chartOpts('Water Level (m)')
+  });
+}
+function buildTrendChart(){
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  const v=state.rawValues; const n=v.length;
+  const clean=v.map((x,i)=>isNaN(x)?null:{x:i,y:x}).filter(Boolean);
+  if(clean.length<2){ return; }
+  const sumX=clean.reduce((a,b)=>a+b.x,0);
+  const sumY=clean.reduce((a,b)=>a+b.y,0);
+  const sumXY=clean.reduce((a,b)=>a+b.x*b.y,0);
+  const sumX2=clean.reduce((a,b)=>a+b.x*b.x,0);
+  const nc=clean.length;
+  const slope=(nc*sumXY-sumX*sumY)/(nc*sumX2-sumX**2);
+  const intercept=(sumY-slope*sumX)/nc;
+  const trend=Array.from({length:n},(_,i)=>parseFloat((slope*i+intercept).toFixed(4)));
+  const dir=slope>0?'↑ Naik':'↓ Turun';
+  const rate=(slope*24).toFixed(5);
+  document.getElementById('trend-info').innerHTML=`
+    <strong>${dir}</strong> &bull; Rate: ${rate} m/hari &bull; Slope: ${slope.toFixed(6)} m/jam
+    &bull; R² ≈ ${computeR2(v,trend).toFixed(3)}
+  `;
+  state.chartInstances['trendChart']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:chartLabels(),
+      datasets:[
+        {label:'Water Level',data:v,borderColor:COLORS.raw,borderWidth:1,pointRadius:0,tension:0.2,fill:false},
+        {label:'Trend',data:trend,borderColor:COLORS.trend,borderWidth:2,pointRadius:0,fill:false,borderDash:[6,3]}
+      ]
+    },
+    options:chartOpts('Water Level (m)',{legend:true})
+  });
+}
+function computeR2(obs,pred){
+  const clean=obs.filter((v,i)=>!isNaN(v)&&!isNaN(pred[i]));
+  if(!clean.length) return 0;
+  const mean=clean.reduce((a,b)=>a+b,0)/clean.length;
+  const ssTot=obs.reduce((a,v,i)=>isNaN(v)?a:a+(v-mean)**2,0);
+  const ssRes=obs.reduce((a,v,i)=>isNaN(v)?a:a+(v-pred[i])**2,0);
+  return Math.max(0,1-ssRes/ssTot);
+}
+function buildHistChart(){
+  const ctx=document.getElementById('histChart').getContext('2d');
+  const v=state.rawValues.filter(x=>!isNaN(x));
+  if(!v.length) return;
+  const min=Math.min(...v), max=Math.max(...v);
+  const bins=20; const bw=(max-min)/bins;
+  const hist=Array(bins).fill(0);
+  v.forEach(x=>{ const b=Math.min(bins-1,Math.floor((x-min)/bw)); hist[b]++; });
+  const labels=Array.from({length:bins},(_,i)=>(min+i*bw).toFixed(2));
+  state.chartInstances['histChart']=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Frekuensi',data:hist,backgroundColor:'rgba(6,182,212,0.5)',borderColor:COLORS.raw,borderWidth:1}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94b8c8',maxTicksLimit:10},grid:{color:'rgba(255,255,255,0.05)'}},y:{ticks:{color:'#94b8c8'},grid:{color:'rgba(255,255,255,0.05)'}}}}
+  });
+}
+
+function updateTidalChart(){
+  destroyChart('tidalChart');
+  const ctx=document.getElementById('tidalChart').getContext('2d');
+  state.chartInstances['tidalChart']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:chartLabels(),
+      datasets:[
+        {label:'Data Asli',data:state.rawValues,borderColor:COLORS.raw,borderWidth:1,pointRadius:0,tension:0.2,fill:false},
+        {label:'Rekonstruksi UTide',data:state.utideRecon,borderColor:COLORS.tidal,borderWidth:2,pointRadius:0,tension:0.3,fill:false,borderDash:[5,2]}
+      ]
+    },
+    options:chartOpts('Water Level (m)',{legend:true})
+  });
+}
+
+function updateCharts(){
+  const mc=state.chartInstances['mainChart'];
+  if(mc){ mc.data.datasets[1].data=state.filteredValues; mc.update('none'); }
+  const fc=state.chartInstances['filterChart'];
+  if(fc){ fc.data.datasets[0].data=state.rawValues; fc.data.datasets[1].data=state.filteredValues; fc.update('none'); }
+}
+
+function chartOpts(yLabel,opts={}){
+  return {
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:opts.legend||false,labels:{color:'#94b8c8',usePointStyle:true,boxWidth:10,font:{size:11}}},
+      tooltip:{backgroundColor:'rgba(10,22,40,0.95)',titleColor:'#e8f4f8',bodyColor:'#94b8c8',borderColor:'rgba(0,229,255,0.3)',borderWidth:1,callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(3)||'N/A'} m`}}
+    },
+    scales:{
+      x:{ticks:{color:'#5d8a9e',maxTicksLimit:12,maxRotation:0,font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'},border:{color:'rgba(255,255,255,0.1)'}},
+      y:{title:{display:true,text:yLabel,color:'#5d8a9e',font:{size:10}},ticks:{color:'#94b8c8',font:{size:10}},grid:{color:'rgba(255,255,255,0.06)'},border:{color:'rgba(255,255,255,0.1)'}}
+    },
+    animation:{duration:300}
+  };
+}
+
+function toggleSeries(which){
+  const mc=state.chartInstances['mainChart']; if(!mc) return;
+  const idx=which==='raw'?0:1;
+  const ds=mc.data.datasets[idx];
+  ds.hidden=!ds.hidden;
+  document.getElementById('leg-'+which).classList.toggle('muted',ds.hidden);
+  mc.update();
+}
+
+// ============================================================
+//  TABLES
+// ============================================================
+function renderRawTable(){
+  const tbody=document.getElementById('raw-tbody');
+  const n=getRawRows();
+  const data=state.rawValues.slice(0,n==='all'?undefined:n);
+  tbody.innerHTML=data.map((v,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${state.rawTimes[i]?formatTime(state.rawTimes[i]):'—'}</td>
+      <td>${isNaN(v)?'<span style="color:#f87171">NaN</span>':v.toFixed(4)}</td>
+      <td>${isNaN(v)?'<span class="badge badge-red">missing</span>':'<span class="badge badge-green">valid</span>'}</td>
+    </tr>`).join('');
+}
+function getRawRows(){ const v=document.getElementById('raw-rows')?.value||'20'; return v==='all'?Infinity:parseInt(v); }
+
+function renderFilterTable(){
+  const tbody=document.getElementById('filt-tbody');
+  const n=document.getElementById('filt-rows')?.value||'20';
+  const limit=n==='all'?state.rawValues.length:parseInt(n);
+  const data=state.rawValues.slice(0,limit);
+  tbody.innerHTML=data.map((v,i)=>{
+    const fv=state.filteredValues[i];
+    const diff=(!isNaN(v)&&!isNaN(fv))?(v-fv).toFixed(4):'—';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${state.rawTimes[i]?formatTime(state.rawTimes[i]):'—'}</td>
+      <td>${isNaN(v)?'—':v.toFixed(4)}</td>
+      <td>${isNaN(fv)?'—':fv.toFixed(4)}</td>
+      <td style="color:${parseFloat(diff)>0?'#60a5fa':parseFloat(diff)<0?'#f87171':'#94b8c8'}">${diff}</td>
+    </tr>`;}).join('');
+}
+
+function renderUTideTable(){
+  const tbody=document.getElementById('utide-tbody');
+  if(!state.utideComponents.length){ tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Jalankan analisis UTide</td></tr>'; return; }
+  const total=state.utideComponents.reduce((a,b)=>a+b.amp,0);
+  const typeMap={M2:'Semi-diurnal',S2:'Semi-diurnal',N2:'Semi-diurnal',K2:'Semi-diurnal',K1:'Diurnal',O1:'Diurnal',P1:'Diurnal',Q1:'Diurnal'};
+  tbody.innerHTML=state.utideComponents.map(c=>`
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.period.toFixed(4)}</td>
+      <td>${c.amp.toFixed(4)}</td>
+      <td>${c.phase.toFixed(1)}°</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="height:6px;width:${Math.round(c.amp/Math.max(0.001,total)*100)}px;background:var(--ocean-cyan);border-radius:3px;min-width:4px"></div>
+          ${(c.amp/Math.max(0.001,total)*100).toFixed(1)}%
+        </div>
+      </td>
+      <td><span class="badge ${typeMap[c.name]==='Diurnal'?'badge-amber':'badge-cyan'}">${typeMap[c.name]||'—'}</span></td>
+    </tr>`).join('');
+}
+
+function renderCompTable(){
+  const tbody=document.getElementById('comp-tbody');
+  if(!state.utideRecon.length){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Jalankan analisis UTide</td></tr>'; return; }
+  const n=parseInt(document.getElementById('comp-rows')?.value||'20');
+  const data=state.rawValues.slice(0,n);
+  tbody.innerHTML=data.map((v,i)=>{
+    const r=state.utideRecon[i];
+    const res=(!isNaN(v)&&!isNaN(r))?(v-r).toFixed(4):'—';
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${state.rawTimes[i]?formatTime(state.rawTimes[i]):'—'}</td>
+      <td>${isNaN(v)?'—':v.toFixed(4)}</td>
+      <td>${isNaN(r)?'—':r.toFixed(4)}</td>
+      <td style="color:${Math.abs(parseFloat(res))>0.05?'#f87171':'#94b8c8'}">${res}</td>
+    </tr>`;}).join('');
+}
+
+// ============================================================
+//  EXPORT
+// ============================================================
+function exportCSV(type){
+  if(!state.rawValues.length){ showNotif('⚠️ Tidak ada data','#f59e0b'); return; }
+  let rows,fname;
+  if(type==='raw'){
+    rows=[['#','Timestamp','Water_Level_m'],...state.rawValues.map((v,i)=>[i+1,state.rawTimes[i]?.toISOString()||'',isNaN(v)?'':v])];
+    fname='raw_data.csv';
+  } else if(type==='filtered'){
+    rows=[['#','Timestamp','Raw_m','Filtered_m'],...state.rawValues.map((v,i)=>[i+1,state.rawTimes[i]?.toISOString()||'',isNaN(v)?'':v,isNaN(state.filteredValues[i])?'':state.filteredValues[i]])];
+    fname='filtered_data.csv';
+  } else if(type==='utide'){
+    if(!state.utideComponents.length){ showNotif('⚠️ Jalankan UTide terlebih dahulu','#f59e0b'); return; }
+    rows=[['Komponen','Periode_jam','Amplitudo_m','Fase_deg'],...state.utideComponents.map(c=>[c.name,c.period,c.amp,c.phase])];
+    fname='utide_components.csv';
+  }
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  downloadBlob(new Blob([csv],{type:'text/csv'}),fname);
+  showNotif('✅ CSV diunduh','#10b981');
+}
+
+function exportChart(){
+  const mc=state.chartInstances['mainChart'];
+  if(!mc){ showNotif('⚠️ Tidak ada grafik','#f59e0b'); return; }
+  const url=mc.toBase64Image('image/png',1);
+  const a=document.createElement('a'); a.href=url; a.download='ocean_chart.png'; a.click();
+  showNotif('✅ Grafik diunduh','#10b981');
+}
+
+function downloadBlob(blob,fname){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=fname; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+//  TABS
+// ============================================================
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  // Trigger chart resize
+  setTimeout(()=>{
+    Object.values(state.chartInstances).forEach(c=>{ try{c.resize();}catch(e){} });
+  },50);
+}
+
+// ============================================================
+//  UTILS
+// ============================================================
+function setEl(id,val){ const el=document.getElementById(id); if(el) el.textContent=val; }
+function showNotif(msg,color='#06b6d4'){
+  const n=document.getElementById('notif');
+  n.textContent=msg; n.style.borderColor=color; n.style.color=color;
+  n.classList.add('show');
+  setTimeout(()=>n.classList.remove('show'),3000);
+}
+
+// Init filter UI
+updateFilterUI();
+</script>
+</body>
+</html>
